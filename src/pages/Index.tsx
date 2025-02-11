@@ -1,7 +1,7 @@
-
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useState } from "react";
-import { PlusCircle, Search, Filter } from "lucide-react";
+import { Search, Filter } from "lucide-react";
+import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 
 // Mock data for initial development
 const mockPatients = [
@@ -29,10 +29,7 @@ const Index = () => {
             <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
             <p className="text-sm text-gray-500 mt-1">Manage your patient records</p>
           </div>
-          <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-            <PlusCircle className="h-5 w-5" />
-            <span>Add Patient</span>
-          </button>
+          <AddPatientDialog />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
