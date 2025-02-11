@@ -1,4 +1,3 @@
-
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -9,7 +8,6 @@ import {
 import { useState } from "react";
 import { PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
@@ -32,7 +30,11 @@ const formSchema = z.object({
   prescription: z.string().optional(),
 });
 
-export function AddPatientDialog() {
+interface AddPatientDialogProps {
+  onPatientAdded: (patientData: z.infer<typeof formSchema>) => void;
+}
+
+export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
   const [open, setOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,8 +50,7 @@ export function AddPatientDialog() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // TODO: Implement patient creation logic
-    console.log(values);
+    onPatientAdded(values);
     setOpen(false);
     form.reset();
   };

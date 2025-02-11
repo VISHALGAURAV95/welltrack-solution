@@ -1,25 +1,40 @@
+
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, FileText } from "lucide-react";
 import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 
-// Mock data for initial development
-const mockPatients = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "+1 234 567 890",
-    lastVisit: "2024-02-15",
-    status: "Active",
-    totalCost: 5000,
-    pendingAmount: 2000,
-  },
-  // Add more mock patients as needed
-];
+// Define the Patient type for better type safety
+export interface Patient {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  lastVisit: string;
+  status: string;
+  totalCost: number;
+  pendingAmount: number;
+}
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [patients, setPatients] = useState<Patient[]>([]);
+
+  const handleAddPatient = (patientData: any) => {
+    // Create a new patient object with required fields
+    const newPatient: Patient = {
+      id: Date.now().toString(), // temporary ID generation
+      name: patientData.name,
+      email: patientData.email,
+      phone: patientData.number,
+      lastVisit: new Date().toISOString().split('T')[0],
+      status: "Active",
+      totalCost: 0,
+      pendingAmount: 0,
+    };
+
+    setPatients((prevPatients) => [...prevPatients, newPatient]);
+  };
 
   return (
     <AdminLayout>
@@ -29,7 +44,7 @@ const Index = () => {
             <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
             <p className="text-sm text-gray-500 mt-1">Manage your patient records</p>
           </div>
-          <AddPatientDialog />
+          <AddPatientDialog onPatientAdded={handleAddPatient} />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -74,10 +89,13 @@ const Index = () => {
                   <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pending
                   </th>
+                  <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {mockPatients.map((patient) => (
+                {patients.map((patient) => (
                   <tr
                     key={patient.id}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -113,6 +131,15 @@ const Index = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-error text-right">
                       ${patient.pendingAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right">
+                      <button
+                        onClick={() => console.log('Generate bill for:', patient.id)}
+                        className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>Generate Bill</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
