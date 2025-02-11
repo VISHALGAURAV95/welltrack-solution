@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { NavLink } from "react-router-dom";
 import { Users, FileText, CreditCard, BarChart2, MessageSquare, Settings, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +42,14 @@ const Sidebar = () => {
         <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.label}>
-              <a
-                href={item.href}
-                className="flex items-center gap-4 p-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              <NavLink
+                to={item.href}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-4 p-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors",
+                    isActive && "bg-primary/10 text-primary hover:bg-primary/20"
+                  )
+                }
               >
                 <item.icon className="h-5 w-5 shrink-0" />
                 <span className={cn(
@@ -52,7 +58,7 @@ const Sidebar = () => {
                 )}>
                   {item.label}
                 </span>
-              </a>
+              </NavLink>
             </li>
           ))}
         </ul>
