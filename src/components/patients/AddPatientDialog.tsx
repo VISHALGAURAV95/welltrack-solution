@@ -1,3 +1,4 @@
+
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -20,6 +21,8 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -36,6 +39,7 @@ interface AddPatientDialogProps {
 
 export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,9 +54,46 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    onPatientAdded(values);
-    setOpen(false);
-    form.reset();
+    try {
+      // Convert services string to array
+      const servicesArray = values.services.split(',').map(s => s.trim());
+      
+      const { data, error } = await supabase
+        .from('patients')
+        .insert({
+          name: values.name,
+          number: values.number,
+          email: values.email,
+          address: values.address,
+          services: servicesArray,
+          prescription: values.prescription || null,
+          visit_date: new Date().toISOString(),
+          total_cost: 0, // Initial values
+          pending_amount: 0,
+          services_used: [],
+          notification_system: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Patient added successfully",
+      });
+
+      onPatientAdded(values);
+      setOpen(false);
+      form.reset();
+    } catch (error: any) {
+      console.error('Error adding patient:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to add patient",
+      });
+    }
   };
 
   return (

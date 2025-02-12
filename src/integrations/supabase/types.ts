@@ -9,6 +9,89 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      patients: {
+        Row: {
+          address: string
+          create_date: string
+          email: string
+          id: string
+          name: string
+          notification_system: boolean
+          number: string
+          pending_amount: number
+          prescription: string | null
+          services: string[]
+          services_used: string[]
+          total_cost: number
+          visit_date: string
+        }
+        Insert: {
+          address: string
+          create_date?: string
+          email: string
+          id?: string
+          name: string
+          notification_system?: boolean
+          number: string
+          pending_amount?: number
+          prescription?: string | null
+          services?: string[]
+          services_used?: string[]
+          total_cost?: number
+          visit_date: string
+        }
+        Update: {
+          address?: string
+          create_date?: string
+          email?: string
+          id?: string
+          name?: string
+          notification_system?: boolean
+          number?: string
+          pending_amount?: number
+          prescription?: string | null
+          services?: string[]
+          services_used?: string[]
+          total_cost?: number
+          visit_date?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          date: string
+          id: string
+          mode: string
+          patient_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          date?: string
+          id?: string
+          mode: string
+          patient_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          date?: string
+          id?: string
+          mode?: string
+          patient_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
