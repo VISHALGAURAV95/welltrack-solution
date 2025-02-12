@@ -1,36 +1,46 @@
-
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useState } from "react";
 import { Search, Filter, FileText } from "lucide-react";
 import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { GenerateBillDialog } from "@/components/patients/GenerateBillDialog";
 
-// Define the Patient type for better type safety
 export interface Patient {
   id: string;
   name: string;
   email: string;
   phone: string;
-  lastVisit: string;
-  status: string;
-  totalCost: number;
-  pendingAmount: number;
+  visit_date: string;
+  total_cost: number;
+  pending_amount: number;
 }
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
 
-  const handleAddPatient = (patientData: any) => {
-    // Create a new patient object with required fields
+  const { data: patientsData, refetch: refetchPatients } = useQuery({
+    queryKey: ['patients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleAddPatient = async (patientData: any) => {
     const newPatient: Patient = {
-      id: Date.now().toString(), // temporary ID generation
+      id: Date.now().toString(),
       name: patientData.name,
       email: patientData.email,
       phone: patientData.number,
-      lastVisit: new Date().toISOString().split('T')[0],
-      status: "Active",
-      totalCost: 0,
-      pendingAmount: 0,
+      visit_date: new Date().toISOString().split('T')[0],
+      total_cost: 0,
+      pending_amount: 0,
     };
 
     setPatients((prevPatients) => [...prevPatients, newPatient]);
@@ -95,7 +105,7 @@ const Index = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {patients.map((patient) => (
+                {patientsData?.map((patient) => (
                   <tr
                     key={patient.id}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -119,27 +129,25 @@ const Index = () => {
                       {patient.phone}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {patient.lastVisit}
+                      {new Date(patient.visit_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                        {patient.status}
+                        Active
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 text-right">
-                      ${patient.totalCost.toLocaleString()}
+                      ${patient.total_cost.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-error text-right">
-                      ${patient.pendingAmount.toLocaleString()}
+                      ${patient.pending_amount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-right">
-                      <button
-                        onClick={() => console.log('Generate bill for:', patient.id)}
-                        className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-                      >
-                        <FileText className="h-4 w-4" />
-                        <span>Generate Bill</span>
-                      </button>
+                      <GenerateBillDialog
+                        patientId={patient.id}
+                        patientName={patient.name}
+                        onBillGenerated={() => refetchPatients()}
+                      />
                     </td>
                   </tr>
                 ))}

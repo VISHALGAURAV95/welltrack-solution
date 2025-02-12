@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bills: {
+        Row: {
+          amount: number
+          bill_date: string
+          created_at: string
+          description: string | null
+          id: string
+          patient_id: string
+          services: string[] | null
+          status: string | null
+        }
+        Insert: {
+          amount?: number
+          bill_date?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          patient_id: string
+          services?: string[] | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          bill_date?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          patient_id?: string
+          services?: string[] | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           address: string
