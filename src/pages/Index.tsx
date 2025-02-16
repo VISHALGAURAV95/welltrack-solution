@@ -1,10 +1,11 @@
+
 import AdminLayout from "@/components/layout/AdminLayout";
 import { useState } from "react";
 import { Search, Filter, FileText } from "lucide-react";
 import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { GenerateBillDialog } from "@/components/patients/GenerateBillDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { GenerateBillDialog } from "@/components/bills/GenerateBillDialog";
 
 export interface Patient {
   id: string;
