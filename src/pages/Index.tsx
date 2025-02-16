@@ -6,6 +6,12 @@ import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerateBillDialog } from "@/components/bills/GenerateBillDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface Patient {
   id: string;
@@ -19,7 +25,7 @@ export interface Patient {
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [filterBy, setFilterBy] = useState<"all" | "pending" | "paid">("all");
 
   const { data: patientsData, refetch: refetchPatients } = useQuery({
     queryKey: ['patients'],
@@ -47,6 +53,22 @@ const Index = () => {
     setPatients((prevPatients) => [...prevPatients, newPatient]);
   };
 
+  const filteredPatients = patientsData?.filter((patient) => {
+    const matchesSearch = 
+      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.number.includes(searchTerm) ||
+      new Date(patient.visit_date).toLocaleDateString().includes(searchTerm);
+
+    if (filterBy === "pending") {
+      return matchesSearch && patient.pending_amount > 0;
+    } else if (filterBy === "paid") {
+      return matchesSearch && patient.pending_amount === 0;
+    }
+    
+    return matchesSearch;
+  });
+
   return (
     <AdminLayout>
       <div className="space-y-8">
@@ -65,16 +87,31 @@ const Index = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
-                  placeholder="Search patients..."
+                  placeholder="Search by name, contact, visit date..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 />
               </div>
-              <button className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <Filter className="h-4 w-4" />
-                <span>Filter</span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <Filter className="h-4 w-4" />
+                    <span>Filter</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setFilterBy("all")}>
+                    All Patients
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterBy("pending")}>
+                    Pending Bills
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterBy("paid")}>
+                    Fully Paid
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -103,7 +140,7 @@ const Index = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {patientsData?.map((patient) => (
+                {filteredPatients?.map((patient) => (
                   <tr
                     key={patient.id}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
