@@ -56,9 +56,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
       const servicesArray = values.services.split(',').map(s => s.trim());
       const totalAmount = parseFloat(values.amount);
       const paidAmount = parseFloat(values.paidAmount);
-      const pendingAmount = Math.max(0, totalAmount - paidAmount);
       
-      // Insert bill record
+      // First, insert the new bill
       const { data: billData, error: billError } = await supabase
         .from('bills')
         .insert({
@@ -66,6 +65,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
           amount: totalAmount,
           description: values.description,
           services: servicesArray,
+          status: paidAmount >= totalAmount ? 'Paid' : 'Pending'
         })
         .select()
         .single();
@@ -80,7 +80,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
             patient_id: patientId,
             amount: paidAmount,
             mode: 'Cash',
-            status: 'Completed'
+            status: 'Completed',
+            bill_id: billData.id // Link the payment to the specific bill
           });
 
         if (paymentError) throw paymentError;
