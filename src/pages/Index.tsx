@@ -40,17 +40,24 @@ const Index = () => {
   });
 
   const handleAddPatient = async (patientData: any) => {
-    const newPatient: Patient = {
-      id: Date.now().toString(),
-      name: patientData.name,
-      email: patientData.email,
-      number: patientData.number,
-      visit_date: new Date().toISOString().split('T')[0],
-      total_cost: 0,
-      pending_amount: 0,
-    };
+    const { error } = await supabase
+      .from('patients')
+      .insert({
+        name: patientData.name,
+        email: patientData.email,
+        number: patientData.number,
+        visit_date: new Date().toISOString().split('T')[0],
+        total_cost: 0,
+        pending_amount: 0,
+      });
 
-    setPatients((prevPatients) => [...prevPatients, newPatient]);
+    if (error) {
+      console.error('Error adding patient:', error);
+      return;
+    }
+
+    // Refresh the patients list
+    refetchPatients();
   };
 
   const filteredPatients = patientsData?.filter((patient) => {
