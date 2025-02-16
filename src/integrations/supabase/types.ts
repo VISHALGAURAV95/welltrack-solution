@@ -101,6 +101,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          bill_id: string | null
           date: string
           id: string
           mode: string
@@ -109,6 +110,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          bill_id?: string | null
           date?: string
           id?: string
           mode: string
@@ -117,6 +119,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          bill_id?: string | null
           date?: string
           id?: string
           mode?: string
@@ -124,6 +127,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_patient_id_fkey"
             columns: ["patient_id"]
