@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
+  paidAmount: z.string().min(1, "Paid amount is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   services: z.string().min(1, "Please specify at least one service"),
 });
@@ -44,6 +45,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: "",
+      paidAmount: "0",
       description: "",
       services: "",
     },
@@ -52,19 +54,37 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const servicesArray = values.services.split(',').map(s => s.trim());
+      const totalAmount = parseFloat(values.amount);
+      const paidAmount = parseFloat(values.paidAmount);
+      const pendingAmount = Math.max(0, totalAmount - paidAmount);
       
-      const { data, error } = await supabase
+      // Insert bill record
+      const { data: billData, error: billError } = await supabase
         .from('bills')
         .insert({
           patient_id: patientId,
-          amount: parseFloat(values.amount),
+          amount: totalAmount,
           description: values.description,
           services: servicesArray,
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (billError) throw billError;
+
+      // If there's a payment, record it
+      if (paidAmount > 0) {
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            patient_id: patientId,
+            amount: paidAmount,
+            mode: 'Cash',
+            status: 'Completed'
+          });
+
+        if (paymentError) throw paymentError;
+      }
 
       toast({
         title: "Success",
@@ -103,7 +123,21 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated }: 
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount</FormLabel>
+                  <FormLabel>Total Amount</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="0.00" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="paidAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paid Amount</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="0.00" {...field} />
                   </FormControl>

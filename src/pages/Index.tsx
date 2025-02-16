@@ -11,7 +11,7 @@ export interface Patient {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  number: string;
   visit_date: string;
   total_cost: number;
   pending_amount: number;
@@ -38,7 +38,7 @@ const Index = () => {
       id: Date.now().toString(),
       name: patientData.name,
       email: patientData.email,
-      phone: patientData.number,
+      number: patientData.number,
       visit_date: new Date().toISOString().split('T')[0],
       total_cost: 0,
       pending_amount: 0,
@@ -91,9 +91,6 @@ const Index = () => {
                   <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Visit
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
                   <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total Cost
                   </th>
@@ -127,15 +124,10 @@ const Index = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {patient.phone}
+                      {patient.number}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(patient.visit_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                        Active
-                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 text-right">
                       ${patient.total_cost.toLocaleString()}
