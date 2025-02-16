@@ -4,6 +4,7 @@ import { FileText, Search, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { GenerateBillDialog } from "@/components/bills/GenerateBillDialog";
 
 const Bills = () => {
   const { data: bills, refetch } = useQuery({
@@ -76,6 +77,9 @@ const Bills = () => {
                     <th className="text-center px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
+                    <th className="text-right px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -124,6 +128,14 @@ const Bills = () => {
                         >
                           {bill.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <GenerateBillDialog
+                          patientId={bill.patient_id}
+                          patientName={bill.patients.name}
+                          billId={bill.id}
+                          onBillGenerated={() => refetch()}
+                        />
                       </td>
                     </tr>
                   ))}
