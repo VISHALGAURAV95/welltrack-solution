@@ -7,8 +7,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { Edit2, FileText, Download } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Edit2, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
@@ -24,8 +23,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import { InvoiceDocument } from "./InvoiceDocument";
+import { useInvoiceItems, InvoiceItem } from "./hooks/useInvoiceItems";
+import { InvoiceItemsForm } from "./components/InvoiceItemsForm";
+import { BillFormActions } from "./components/BillFormActions";
 
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -50,7 +50,7 @@ interface GenerateBillDialogProps {
 export function GenerateBillDialog({ patientId, patientName, onBillGenerated, billId }: GenerateBillDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
-  const [invoiceItems, setInvoiceItems] = useState([{ item: "", description: "", amount: 0 }]);
+  const { invoiceItems, setInvoiceItems, addInvoiceItem, updateInvoiceItem } = useInvoiceItems();
 
   const { data: patientData } = useQuery({
     queryKey: ['patient', patientId],
@@ -96,26 +96,21 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
   useEffect(() => {
     if (billData) {
+      const items = billData.items as InvoiceItem[] || [{ item: "", description: "", amount: 0 }];
       form.reset({
         amount: billData.amount.toString(),
         paidAmount: "0",
         description: billData.description || "",
         services: billData.services?.join(", ") || "",
         notes: billData.notes || "",
-        items: billData.items || [{ item: "", description: "", amount: 0 }],
+        items: items,
       });
-      setInvoiceItems(billData.items || [{ item: "", description: "", amount: 0 }]);
+      setInvoiceItems(items);
     }
-  }, [billData, form]);
+  }, [billData, form, setInvoiceItems]);
 
-  const addInvoiceItem = () => {
-    setInvoiceItems([...invoiceItems, { item: "", description: "", amount: 0 }]);
-  };
-
-  const updateInvoiceItem = (index: number, field: keyof typeof invoiceItems[0], value: string | number) => {
-    const newItems = [...invoiceItems];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setInvoiceItems(newItems);
+  const handleUpdateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+    const newItems = updateInvoiceItem(index, field, value);
     form.setValue('items', newItems);
   };
 
@@ -126,7 +121,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       const paidAmount = parseFloat(values.paidAmount);
       const currentDate = new Date().toISOString();
       
-      // Update patient's visit date
       const { error: patientError } = await supabase
         .from('patients')
         .update({ visit_date: currentDate })
@@ -135,7 +129,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       if (patientError) throw patientError;
       
       if (billId) {
-        // Update existing bill
         const { error: billError } = await supabase
           .from('bills')
           .update({
@@ -151,7 +144,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
         if (billError) throw billError;
       } else {
-        // Create new bill
         const { data: billData, error: billError } = await supabase
           .from('bills')
           .insert({
@@ -169,7 +161,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
         if (billError) throw billError;
 
-        // If there's a payment, record it
         if (paidAmount > 0) {
           const { error: paymentError } = await supabase
             .from('payments')
@@ -228,50 +219,11 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-4">
-              {invoiceItems.map((item, index) => (
-                <div key={index} className="flex gap-4">
-                  <FormItem className="flex-1">
-                    <FormLabel>Item</FormLabel>
-                    <FormControl>
-                      <Input
-                        value={item.item}
-                        onChange={(e) => updateInvoiceItem(index, 'item', e.target.value)}
-                        placeholder="e.g., Consultation"
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormItem className="flex-1">
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input
-                        value={item.description}
-                        onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
-                        placeholder="e.g., General checkup"
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <FormItem className="w-32">
-                    <FormLabel>Amount</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={item.amount}
-                        onChange={(e) => updateInvoiceItem(index, 'amount', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                      />
-                    </FormControl>
-                  </FormItem>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addInvoiceItem}
-                className="text-primary hover:text-primary/80 transition-colors text-sm"
-              >
-                + Add Item
-              </button>
-            </div>
+            <InvoiceItemsForm
+              items={invoiceItems}
+              onUpdateItem={handleUpdateInvoiceItem}
+              onAddItem={addInvoiceItem}
+            />
 
             <FormField
               control={form.control}
@@ -291,42 +243,14 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
               )}
             />
 
-            <div className="flex justify-end gap-4 pt-4">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                {billId ? "Update Bill" : "Generate Bill"}
-              </button>
-              {patientData && billData && (
-                <PDFDownloadLink
-                  document={
-                    <InvoiceDocument
-                      patientName={patientData.name}
-                      patientEmail={patientData.email}
-                      patientPhone={patientData.number}
-                      patientAddress={patientData.address}
-                      items={invoiceItems}
-                      notes={form.getValues("notes") || ""}
-                      billDate={new Date(billData.bill_date)}
-                      billId={billData.id}
-                    />
-                  }
-                  fileName={`invoice-${billData.id.slice(0, 8)}.pdf`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Invoice
-                </PDFDownloadLink>
-              )}
-            </div>
+            <BillFormActions
+              billId={billId}
+              onClose={() => setOpen(false)}
+              patientData={patientData}
+              billData={billData}
+              items={invoiceItems}
+              notes={form.getValues("notes") || ""}
+            />
           </form>
         </Form>
       </DialogContent>
