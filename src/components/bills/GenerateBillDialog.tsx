@@ -6,7 +6,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { Edit2, FileText } from "lucide-react";
+import { Edit2, FileText, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,12 +23,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { InvoiceDocument } from "./InvoiceDocument";
 
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   paidAmount: z.string().min(1, "Paid amount is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   services: z.string().min(1, "Please specify at least one service"),
+  notes: z.string().optional(),
+  items: z.array(z.object({
+    item: z.string(),
+    description: z.string(),
+    amount: z.number(),
+  })).min(1, "At least one item is required"),
 });
 
 interface GenerateBillDialogProps {
@@ -41,6 +49,21 @@ interface GenerateBillDialogProps {
 export function GenerateBillDialog({ patientId, patientName, onBillGenerated, billId }: GenerateBillDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [invoiceItems, setInvoiceItems] = useState([{ item: "", description: "", amount: 0 }]);
+
+  const { data: patientData } = useQuery({
+    queryKey: ['patient', patientId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: billData } = useQuery({
     queryKey: ['bill', billId],
@@ -65,6 +88,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       paidAmount: "0",
       description: "",
       services: "",
+      notes: "",
+      items: [{ item: "", description: "", amount: 0 }],
     },
   });
 
@@ -72,12 +97,25 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     if (billData) {
       form.reset({
         amount: billData.amount.toString(),
-        paidAmount: "0", // Reset paid amount as it's handled separately
+        paidAmount: "0",
         description: billData.description || "",
         services: billData.services?.join(", ") || "",
+        notes: billData.notes || "",
+        items: billData.items || [{ item: "", description: "", amount: 0 }],
       });
     }
   }, [billData, form]);
+
+  const addInvoiceItem = () => {
+    setInvoiceItems([...invoiceItems, { item: "", description: "", amount: 0 }]);
+  };
+
+  const updateInvoiceItem = (index: number, field: keyof typeof invoiceItems[0], value: string | number) => {
+    const newItems = [...invoiceItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setInvoiceItems(newItems);
+    form.setValue('items', newItems);
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -176,7 +214,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[725px]">
         <DialogHeader>
           <DialogTitle>
             {billId ? "Edit Bill for " : "Generate Bill for "}{patientName}
@@ -184,62 +222,60 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Total Amount</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="0.00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {!billId && (
-              <FormField
-                control={form.control}
-                name="paidAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Paid Amount</FormLabel>
+            <div className="space-y-4">
+              {invoiceItems.map((item, index) => (
+                <div key={index} className="flex gap-4">
+                  <FormItem className="flex-1">
+                    <FormLabel>Item</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" {...field} />
+                      <Input
+                        value={item.item}
+                        onChange={(e) => updateInvoiceItem(index, 'item', e.target.value)}
+                        placeholder="e.g., Consultation"
+                      />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
-                )}
-              />
-            )}
+                  <FormItem className="flex-1">
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                        placeholder="e.g., General checkup"
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <FormItem className="w-32">
+                    <FormLabel>Amount</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        value={item.amount}
+                        onChange={(e) => updateInvoiceItem(index, 'amount', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                  </FormItem>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addInvoiceItem}
+                className="text-primary hover:text-primary/80 transition-colors text-sm"
+              >
+                + Add Item
+              </button>
+            </div>
 
             <FormField
               control={form.control}
-              name="services"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Services</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g. Consultation, X-ray, Blood Test"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Enter bill description"
+                      placeholder="Add any additional notes..."
                       className="resize-none"
                       {...field}
                     />
@@ -263,6 +299,27 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
               >
                 {billId ? "Update Bill" : "Generate Bill"}
               </button>
+              {patientData && billData && (
+                <PDFDownloadLink
+                  document={
+                    <InvoiceDocument
+                      patientName={patientData.name}
+                      patientEmail={patientData.email}
+                      patientPhone={patientData.number}
+                      patientAddress={patientData.address}
+                      items={invoiceItems}
+                      notes={form.getValues("notes") || ""}
+                      billDate={new Date(billData.bill_date)}
+                      billId={billData.id}
+                    />
+                  }
+                  fileName={`invoice-${billData.id.slice(0, 8)}.pdf`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Invoice
+                </PDFDownloadLink>
+              )}
             </div>
           </form>
         </Form>
