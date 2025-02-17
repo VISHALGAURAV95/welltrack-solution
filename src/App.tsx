@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import Index from "./pages/Index";
 import Bills from "./pages/bills/Index";
 import Payments from "./pages/payments/Index";
@@ -15,27 +16,54 @@ import Settings from "./pages/settings/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check current auth status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-    });
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
 
-    // Subscribe to auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-    });
+        // Subscribe to auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_OUT') {
+            setIsAuthenticated(false);
+          } else if (event === 'SIGNED_IN') {
+            setIsAuthenticated(true);
+          } else if (event === 'TOKEN_REFRESHED') {
+            setIsAuthenticated(true);
+          }
+        });
 
-    return () => subscription.unsubscribe();
-  }, []);
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error: any) {
+        console.error('Auth error:', error);
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: "Please sign in again",
+        });
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, [toast]);
 
   // Show nothing while checking auth status
   if (isAuthenticated === null) {
