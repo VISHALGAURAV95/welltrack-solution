@@ -1,3 +1,4 @@
+
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -103,6 +104,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
         notes: billData.notes || "",
         items: billData.items || [{ item: "", description: "", amount: 0 }],
       });
+      setInvoiceItems(billData.items || [{ item: "", description: "", amount: 0 }]);
     }
   }, [billData, form]);
 
@@ -141,7 +143,9 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
             description: values.description,
             services: servicesArray,
             status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
-            bill_date: currentDate
+            bill_date: currentDate,
+            notes: values.notes,
+            items: values.items
           })
           .eq('id', billId);
 
@@ -156,7 +160,9 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
             description: values.description,
             services: servicesArray,
             status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
-            bill_date: currentDate
+            bill_date: currentDate,
+            notes: values.notes,
+            items: values.items
           })
           .select()
           .single();
