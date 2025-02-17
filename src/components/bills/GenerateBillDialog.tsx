@@ -1,4 +1,3 @@
-
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -85,6 +84,15 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       const servicesArray = values.services.split(',').map(s => s.trim());
       const totalAmount = parseFloat(values.amount);
       const paidAmount = parseFloat(values.paidAmount);
+      const currentDate = new Date().toISOString();
+      
+      // Update patient's visit date
+      const { error: patientError } = await supabase
+        .from('patients')
+        .update({ visit_date: currentDate })
+        .eq('id', patientId);
+
+      if (patientError) throw patientError;
       
       if (billId) {
         // Update existing bill
@@ -94,7 +102,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
             amount: totalAmount,
             description: values.description,
             services: servicesArray,
-            status: paidAmount >= totalAmount ? 'Paid' : 'Pending'
+            status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
+            bill_date: currentDate
           })
           .eq('id', billId);
 
@@ -108,7 +117,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
             amount: totalAmount,
             description: values.description,
             services: servicesArray,
-            status: paidAmount >= totalAmount ? 'Paid' : 'Pending'
+            status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
+            bill_date: currentDate
           })
           .select()
           .single();
