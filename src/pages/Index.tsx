@@ -46,9 +46,14 @@ const Index = () => {
         name: patientData.name,
         email: patientData.email,
         number: patientData.number,
-        visit_date: new Date().toISOString().split('T')[0],
+        address: patientData.address,
+        visit_date: new Date().toISOString(),
         total_cost: 0,
         pending_amount: 0,
+        services: [],
+        services_used: [],
+        notification_system: false,
+        prescription: patientData.prescription || null
       });
 
     if (error) {
