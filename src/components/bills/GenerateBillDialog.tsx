@@ -96,7 +96,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
   useEffect(() => {
     if (billData) {
-      const items = billData.items as InvoiceItem[] || [{ item: "", description: "", amount: 0 }];
+      // First cast to unknown, then to InvoiceItem[] to safely handle the type conversion
+      const items = (billData.items as unknown as InvoiceItem[]) || [{ item: "", description: "", amount: 0 }];
       form.reset({
         amount: billData.amount.toString(),
         paidAmount: "0",
