@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { GenerateBillDialog } from "@/components/bills/GenerateBillDialog";
+import { GenerateInvoiceButton } from "@/components/bills/components/GenerateInvoiceButton";
 
 const Bills = () => {
   const { data: bills, refetch } = useQuery({
@@ -16,7 +17,9 @@ const Bills = () => {
           *,
           patients (
             name,
-            email
+            email,
+            number,
+            address
           )
         `)
         .order('created_at', { ascending: false });
@@ -129,12 +132,18 @@ const Bills = () => {
                           {bill.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right space-x-2">
                         <GenerateBillDialog
                           patientId={bill.patient_id}
                           patientName={bill.patients.name}
                           billId={bill.id}
                           onBillGenerated={() => refetch()}
+                        />
+                        <GenerateInvoiceButton
+                          patientData={bill.patients}
+                          billData={bill}
+                          items={bill.items || []}
+                          notes={bill.notes || ""}
                         />
                       </td>
                     </tr>
