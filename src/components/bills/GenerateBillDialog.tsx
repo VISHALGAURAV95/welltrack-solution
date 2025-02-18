@@ -9,6 +9,7 @@ import {
 import { useState, useEffect } from "react";
 import { Edit2, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -85,7 +86,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: "",
+      amount: "0",
       paidAmount: "0",
       description: "",
       services: "",
@@ -96,7 +97,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
   useEffect(() => {
     if (billData) {
-      // First cast to unknown, then to InvoiceItem[] to safely handle the type conversion
       const items = (billData.items as unknown as InvoiceItem[]) || [{ item: "", description: "", amount: 0 }];
       form.reset({
         amount: billData.amount.toString(),
@@ -109,6 +109,22 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       setInvoiceItems(items);
     }
   }, [billData, form, setInvoiceItems]);
+
+  // Update amount and services when invoice items change
+  useEffect(() => {
+    if (invoiceItems.length > 0) {
+      // Calculate total amount
+      const totalAmount = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+      form.setValue('amount', totalAmount.toString());
+
+      // Update services
+      const services = invoiceItems
+        .map(item => item.item)
+        .filter(item => item.trim() !== '')
+        .join(', ');
+      form.setValue('services', services);
+    }
+  }, [invoiceItems, form]);
 
   const handleUpdateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
     const newItems = updateInvoiceItem(index, field, value);
@@ -226,6 +242,81 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
               onAddItem={addInvoiceItem}
             />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Total Amount</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        readOnly
+                        type="number"
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="paidAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paid Amount</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        placeholder="0.00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Enter bill description..."
+                      className="resize-none"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="services"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Services</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      readOnly
+                      placeholder="Services will be automatically added from items..."
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="notes"
@@ -247,10 +338,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
             <BillFormActions
               billId={billId}
               onClose={() => setOpen(false)}
-              patientData={patientData}
-              billData={billData}
-              items={invoiceItems}
-              notes={form.getValues("notes") || ""}
             />
           </form>
         </Form>
