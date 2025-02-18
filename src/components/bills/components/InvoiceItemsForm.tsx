@@ -5,15 +5,17 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/ui/form";
+import { Trash2 } from "lucide-react";
 import { InvoiceItem } from "../hooks/useInvoiceItems";
 
 interface InvoiceItemsFormProps {
   items: InvoiceItem[];
   onUpdateItem: (index: number, field: keyof InvoiceItem, value: string | number) => void;
   onAddItem: () => void;
+  onRemoveItem?: (index: number) => void;
 }
 
-export function InvoiceItemsForm({ items, onUpdateItem, onAddItem }: InvoiceItemsFormProps) {
+export function InvoiceItemsForm({ items, onUpdateItem, onAddItem, onRemoveItem }: InvoiceItemsFormProps) {
   return (
     <div className="space-y-4">
       {items.map((item, index) => (
@@ -49,6 +51,15 @@ export function InvoiceItemsForm({ items, onUpdateItem, onAddItem }: InvoiceItem
               />
             </FormControl>
           </FormItem>
+          {items.length > 1 && onRemoveItem && (
+            <button
+              type="button"
+              onClick={() => onRemoveItem(index)}
+              className="self-end mb-2 p-2 text-red-500 hover:text-red-600 transition-colors"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+          )}
         </div>
       ))}
       <button

@@ -16,6 +16,13 @@ export function useInvoiceItems(initialItems?: InvoiceItem[]) {
     setInvoiceItems([...invoiceItems, { item: "", description: "", amount: 0 }]);
   };
 
+  const removeInvoiceItem = (index: number) => {
+    const newItems = [...invoiceItems];
+    newItems.splice(index, 1);
+    setInvoiceItems(newItems);
+    return newItems;
+  };
+
   const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
     const newItems = [...invoiceItems];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -27,6 +34,7 @@ export function useInvoiceItems(initialItems?: InvoiceItem[]) {
     invoiceItems,
     setInvoiceItems,
     addInvoiceItem,
+    removeInvoiceItem,
     updateInvoiceItem,
   };
 }

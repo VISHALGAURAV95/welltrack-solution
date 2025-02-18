@@ -1,4 +1,3 @@
-
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -31,7 +30,6 @@ import { BillFormActions } from "./components/BillFormActions";
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   paidAmount: z.string().min(1, "Paid amount is required"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
   services: z.string().min(1, "Please specify at least one service"),
   notes: z.string().optional(),
   items: z.array(z.object({
@@ -110,14 +108,11 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     }
   }, [billData, form, setInvoiceItems]);
 
-  // Update amount and services when invoice items change
   useEffect(() => {
     if (invoiceItems.length > 0) {
-      // Calculate total amount
       const totalAmount = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
       form.setValue('amount', totalAmount.toString());
 
-      // Update services
       const services = invoiceItems
         .map(item => item.item)
         .filter(item => item.trim() !== '')
@@ -150,7 +145,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
           .from('bills')
           .update({
             amount: totalAmount,
-            description: values.description,
             services: servicesArray,
             status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
             bill_date: currentDate,
@@ -166,7 +160,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
           .insert({
             patient_id: patientId,
             amount: totalAmount,
-            description: values.description,
             services: servicesArray,
             status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
             bill_date: currentDate,
@@ -280,24 +273,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Enter bill description..."
-                      className="resize-none"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
