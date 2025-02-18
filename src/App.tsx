@@ -16,11 +16,14 @@ import Settings from "./pages/settings/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 
+// Create a new QueryClient instance
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       retryDelay: 1000,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -73,67 +76,70 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? children : <Navigate to="/auth/login" />;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/bills"
-            element={
-              <ProtectedRoute>
-                <Bills />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/payments"
-            element={
-              <ProtectedRoute>
-                <Payments />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute>
-                <Analytics />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/messages"
-            element={
-              <ProtectedRoute>
-                <Messages />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    // Wrap the entire app with QueryClientProvider
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bills"
+              element={
+                <ProtectedRoute>
+                  <Bills />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payments"
+              element={
+                <ProtectedRoute>
+                  <Payments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute>
+                  <Messages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
