@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   number: z.string().min(10, "Phone number must be at least 10 digits"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   address: z.string().min(10, "Address must be at least 10 characters"),
   services: z.string().min(1, "Please select at least one service"),
   prescription: z.string().optional(),
@@ -55,19 +55,27 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // First check if the phone number already exists
-      const { data: existingPatient } = await supabase
+      // Check for existing phone number or email
+      const { data: existingPatient, error: searchError } = await supabase
         .from('patients')
-        .select('id')
-        .eq('number', values.number)
-        .single();
+        .select('id, number, email')
+        .or(`number.eq.${values.number}${values.email ? `,email.eq.${values.email}` : ''}`);
 
-      if (existingPatient) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "A patient with this phone number already exists",
-        });
+      if (existingPatient && existingPatient.length > 0) {
+        const existing = existingPatient[0];
+        if (existing.number === values.number) {
+          toast({
+            variant: "destructive",
+            title: "Patient Already Exists",
+            description: "A patient with this phone number is already registered",
+          });
+        } else if (values.email && existing.email === values.email) {
+          toast({
+            variant: "destructive",
+            title: "Patient Already Exists",
+            description: "A patient with this email is already registered",
+          });
+        }
         return;
       }
 
@@ -79,12 +87,12 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
         .insert({
           name: values.name,
           number: values.number,
-          email: values.email,
+          email: values.email || null,
           address: values.address,
           services: servicesArray,
           prescription: values.prescription || null,
           visit_date: new Date().toISOString(),
-          total_cost: 0, // Initial values
+          total_cost: 0,
           pending_amount: 0,
           services_used: [],
           notification_system: false
@@ -93,15 +101,11 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
         .single();
 
       if (error) {
-        if (error.code === '23505') {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "A patient with this phone number already exists",
-          });
-        } else {
-          throw error;
-        }
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to add patient. Please try again.",
+        });
         return;
       }
 
@@ -170,7 +174,7 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Email (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="john@example.com" type="email" {...field} />
                   </FormControl>
