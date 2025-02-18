@@ -55,7 +55,23 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Convert services string to array
+      // First check if the phone number already exists
+      const { data: existingPatient } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('number', values.number)
+        .single();
+
+      if (existingPatient) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "A patient with this phone number already exists",
+        });
+        return;
+      }
+
+      // If no existing patient, proceed with insertion
       const servicesArray = values.services.split(',').map(s => s.trim());
       
       const { data, error } = await supabase
@@ -76,7 +92,18 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "A patient with this phone number already exists",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       toast({
         title: "Success",
