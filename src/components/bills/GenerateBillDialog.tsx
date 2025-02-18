@@ -1,3 +1,4 @@
+
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -49,7 +50,7 @@ interface GenerateBillDialogProps {
 export function GenerateBillDialog({ patientId, patientName, onBillGenerated, billId }: GenerateBillDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
-  const { invoiceItems, setInvoiceItems, addInvoiceItem, updateInvoiceItem } = useInvoiceItems();
+  const { invoiceItems, setInvoiceItems, addInvoiceItem, removeInvoiceItem, updateInvoiceItem } = useInvoiceItems();
 
   const { data: patientData } = useQuery({
     queryKey: ['patient', patientId],
@@ -86,7 +87,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     defaultValues: {
       amount: "0",
       paidAmount: "0",
-      description: "",
       services: "",
       notes: "",
       items: [{ item: "", description: "", amount: 0 }],
@@ -99,7 +99,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       form.reset({
         amount: billData.amount.toString(),
         paidAmount: "0",
-        description: billData.description || "",
         services: billData.services?.join(", ") || "",
         notes: billData.notes || "",
         items: items,
@@ -233,6 +232,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
               items={invoiceItems}
               onUpdateItem={handleUpdateInvoiceItem}
               onAddItem={addInvoiceItem}
+              onRemoveItem={removeInvoiceItem}
             />
 
             <div className="grid grid-cols-2 gap-4">
