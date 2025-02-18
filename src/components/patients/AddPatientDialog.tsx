@@ -29,7 +29,6 @@ const formSchema = z.object({
   number: z.string().min(10, "Phone number must be at least 10 digits"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   address: z.string().min(10, "Address must be at least 10 characters"),
-  services: z.string().min(1, "Please select at least one service"),
   prescription: z.string().optional(),
 });
 
@@ -48,7 +47,6 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
       number: "",
       email: "",
       address: "",
-      services: "",
       prescription: "",
     },
   });
@@ -79,9 +77,6 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
         return;
       }
 
-      // If no existing patient, proceed with insertion
-      const servicesArray = values.services.split(',').map(s => s.trim());
-      
       const { data, error } = await supabase
         .from('patients')
         .insert({
@@ -89,7 +84,7 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
           number: values.number,
           email: values.email || null,
           address: values.address,
-          services: servicesArray,
+          services: [], // Initialize with empty array
           prescription: values.prescription || null,
           visit_date: new Date().toISOString(),
           total_cost: 0,
@@ -193,23 +188,6 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
                     <Textarea
                       placeholder="Enter full address"
                       className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="services"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Services Required</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g. Consultation, X-ray, Blood Test"
                       {...field}
                     />
                   </FormControl>
