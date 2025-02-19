@@ -1,3 +1,4 @@
+
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -56,7 +57,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     queryFn: async () => {
       const { data, error } = await supabase
         .from('patients')
-        .select('*')
+        .select('*, bills(amount, status)')
         .eq('id', patientId)
         .single();
       
@@ -85,7 +86,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: "0",
-      paidAmount: "0",
+      paidAmount: patientData?.pending_amount?.toString() || "0",
       services: "",
       notes: "",
       items: [{ item: "", description: "", amount: 0 }],
@@ -97,14 +98,21 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       const items = (billData.items as unknown as InvoiceItem[]) || [{ item: "", description: "", amount: 0 }];
       form.reset({
         amount: billData.amount.toString(),
-        paidAmount: "0",
+        paidAmount: patientData?.pending_amount?.toString() || "0",
         services: billData.services?.join(", ") || "",
         notes: billData.notes || "",
         items: items,
       });
       setInvoiceItems(items);
     }
-  }, [billData, form, setInvoiceItems]);
+  }, [billData, form, setInvoiceItems, patientData]);
+
+  useEffect(() => {
+    // Set the paid amount to pending amount when the dialog opens
+    if (open && patientData?.pending_amount) {
+      form.setValue('paidAmount', patientData.pending_amount.toString());
+    }
+  }, [open, patientData, form]);
 
   useEffect(() => {
     if (invoiceItems.length > 0) {
@@ -142,7 +150,8 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       const totalAmount = parseFloat(values.amount);
       const paidAmount = parseFloat(values.paidAmount);
       const currentDate = new Date().toISOString();
-      
+
+      // Update patient's visit date
       const { error: patientError } = await supabase
         .from('patients')
         .update({ visit_date: currentDate })
@@ -150,55 +159,74 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
       if (patientError) throw patientError;
       
-      if (billId) {
-        const { error: billError } = await supabase
-          .from('bills')
-          .update({
-            amount: totalAmount,
-            services: servicesArray,
-            status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
-            bill_date: currentDate,
-            notes: values.notes,
-            items: values.items
-          })
-          .eq('id', billId);
-
-        if (billError) throw billError;
-      } else {
-        const { data: billData, error: billError } = await supabase
-          .from('bills')
+      // If this is a pending amount payment (no bill creation/update needed)
+      if (paidAmount > 0 && !billId && totalAmount === 0) {
+        const { error: paymentError } = await supabase
+          .from('payments')
           .insert({
             patient_id: patientId,
-            amount: totalAmount,
-            services: servicesArray,
-            status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
-            bill_date: currentDate,
-            notes: values.notes,
-            items: values.items
-          })
-          .select()
-          .single();
+            amount: paidAmount,
+            mode: 'Cash',
+            status: 'Completed'
+          });
 
-        if (billError) throw billError;
+        if (paymentError) throw paymentError;
+      } else {
+        // Regular bill creation/update flow
+        if (billId) {
+          const { error: billError } = await supabase
+            .from('bills')
+            .update({
+              amount: totalAmount,
+              services: servicesArray,
+              status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
+              bill_date: currentDate,
+              notes: values.notes,
+              items: values.items
+            })
+            .eq('id', billId);
 
-        if (paidAmount > 0) {
-          const { error: paymentError } = await supabase
-            .from('payments')
+          if (billError) throw billError;
+        } else {
+          const { data: billData, error: billError } = await supabase
+            .from('bills')
             .insert({
               patient_id: patientId,
-              amount: paidAmount,
-              mode: 'Cash',
-              status: 'Completed',
-              bill_id: billData.id
-            });
+              amount: totalAmount,
+              services: servicesArray,
+              status: paidAmount >= totalAmount ? 'Paid' : 'Pending',
+              bill_date: currentDate,
+              notes: values.notes,
+              items: values.items
+            })
+            .select()
+            .single();
 
-          if (paymentError) throw paymentError;
+          if (billError) throw billError;
+
+          if (paidAmount > 0) {
+            const { error: paymentError } = await supabase
+              .from('payments')
+              .insert({
+                patient_id: patientId,
+                amount: paidAmount,
+                mode: 'Cash',
+                status: 'Completed',
+                bill_id: billData.id
+              });
+
+            if (paymentError) throw paymentError;
+          }
         }
       }
 
       toast({
         title: "Success",
-        description: billId ? "Bill updated successfully" : "Bill generated successfully",
+        description: billId 
+          ? "Bill updated successfully" 
+          : totalAmount === 0 
+            ? "Payment recorded successfully"
+            : "Bill generated successfully",
       });
 
       onBillGenerated();
@@ -242,6 +270,14 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {!billId && patientData?.pending_amount > 0 && (
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <p className="text-amber-800">
+                  Patient has a pending amount of ${patientData.pending_amount.toLocaleString()}
+                </p>
+              </div>
+            )}
+
             <InvoiceItemsForm
               items={invoiceItems}
               onUpdateItem={handleUpdateInvoiceItem}
@@ -274,7 +310,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
                 name="paidAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Paid Amount</FormLabel>
+                    <FormLabel>Amount to Pay</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
