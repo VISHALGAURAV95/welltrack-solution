@@ -1,4 +1,3 @@
-
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -7,7 +6,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
-import { Edit2, FileText } from "lucide-react";
+import { Edit2, FileText, Wallet } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useInvoiceItems, InvoiceItem } from "./hooks/useInvoiceItems";
 import { InvoiceItemsForm } from "./components/InvoiceItemsForm";
 import { BillFormActions } from "./components/BillFormActions";
+import { Button } from "@/components/ui/button";
 
 const formSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -49,8 +49,10 @@ interface GenerateBillDialogProps {
 
 export function GenerateBillDialog({ patientId, patientName, onBillGenerated, billId }: GenerateBillDialogProps) {
   const [open, setOpen] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const { toast } = useToast();
   const { invoiceItems, setInvoiceItems, addInvoiceItem, removeInvoiceItem, updateInvoiceItem } = useInvoiceItems();
+  const [paymentAmount, setPaymentAmount] = useState("0");
 
   const { data: patientData } = useQuery({
     queryKey: ['patient', patientId],
@@ -108,7 +110,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
   }, [billData, form, setInvoiceItems, patientData]);
 
   useEffect(() => {
-    // Set the paid amount to pending amount when the dialog opens
     if (open && patientData?.pending_amount) {
       form.setValue('paidAmount', patientData.pending_amount.toString());
     }
@@ -144,6 +145,47 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     }
   };
 
+  const handlePendingPayment = async () => {
+    try {
+      const amount = parseFloat(paymentAmount);
+      if (amount <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Amount",
+          description: "Please enter a valid payment amount",
+        });
+        return;
+      }
+
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          patient_id: patientId,
+          amount: amount,
+          mode: 'Cash',
+          status: 'Completed'
+        });
+
+      if (paymentError) throw paymentError;
+
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully",
+      });
+
+      onBillGenerated();
+      setShowPaymentDialog(false);
+      setPaymentAmount("0");
+    } catch (error: any) {
+      console.error('Error with payment:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to process payment",
+      });
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const servicesArray = values.services.split(',').map(s => s.trim());
@@ -151,15 +193,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
       const paidAmount = parseFloat(values.paidAmount);
       const currentDate = new Date().toISOString();
 
-      // Update patient's visit date
-      const { error: patientError } = await supabase
-        .from('patients')
-        .update({ visit_date: currentDate })
-        .eq('id', patientId);
-
-      if (patientError) throw patientError;
-      
-      // If this is a pending amount payment (no bill creation/update needed)
       if (paidAmount > 0 && !billId && totalAmount === 0) {
         const { error: paymentError } = await supabase
           .from('payments')
@@ -172,7 +205,6 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
         if (paymentError) throw paymentError;
       } else {
-        // Regular bill creation/update flow
         if (billId) {
           const { error: billError } = await supabase
             .from('bills')
@@ -243,130 +275,183 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <button 
-          className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {billId ? (
-            <>
-              <Edit2 className="h-4 w-4" />
-              <span>Edit Bill</span>
-            </>
-          ) : (
-            <>
-              <FileText className="h-4 w-4" />
-              <span>Generate Bill</span>
-            </>
-          )}
-        </button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[725px]" onClick={(e) => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>
-            {billId ? "Edit Bill for " : "Generate Bill for "}{patientName}
-          </DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {!billId && patientData?.pending_amount > 0 && (
-              <div className="bg-amber-50 p-4 rounded-lg">
-                <p className="text-amber-800">
-                  Patient has a pending amount of ${patientData.pending_amount.toLocaleString()}
-                </p>
-              </div>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <button 
+            className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {billId ? (
+              <>
+                <Edit2 className="h-4 w-4" />
+                <span>Edit Bill</span>
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                <span>Generate Bill</span>
+              </>
             )}
+          </button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[725px]" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>
+              {billId ? "Edit Bill for " : "Generate Bill for "}{patientName}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {!billId && patientData?.pending_amount > 0 && (
+                <div className="bg-amber-50 p-4 rounded-lg flex items-center justify-between">
+                  <p className="text-amber-800">
+                    Patient has a pending amount of ${patientData.pending_amount.toLocaleString()}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setOpen(false);
+                      setShowPaymentDialog(true);
+                      setPaymentAmount(patientData.pending_amount.toString());
+                    }}
+                    className="bg-white"
+                  >
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Pay Pending Amount
+                  </Button>
+                </div>
+              )}
 
-            <InvoiceItemsForm
-              items={invoiceItems}
-              onUpdateItem={handleUpdateInvoiceItem}
-              onAddItem={addInvoiceItem}
-              onRemoveItem={removeInvoiceItem}
-            />
+              <InvoiceItemsForm
+                items={invoiceItems}
+                onUpdateItem={handleUpdateInvoiceItem}
+                onAddItem={addInvoiceItem}
+                onRemoveItem={removeInvoiceItem}
+              />
 
-            <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          readOnly
+                          type="number"
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="paidAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount to Pay</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="amount"
+                name="services"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Total Amount</FormLabel>
+                    <FormLabel>Services</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         readOnly
-                        type="number"
-                        placeholder="0.00"
+                        placeholder="Services will be automatically added from items..."
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
-                name="paidAmount"
+                name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount to Pay</FormLabel>
+                    <FormLabel>Notes</FormLabel>
                     <FormControl>
-                      <Input
+                      <Textarea
+                        placeholder="Add any additional notes..."
+                        className="resize-none"
                         {...field}
-                        type="number"
-                        placeholder="0.00"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <BillFormActions
+                billId={billId}
+                onClose={() => handleOpenChange(false)}
+              />
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Pay Pending Amount</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="paymentAmount" className="text-sm font-medium">
+                Payment Amount
+              </label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="Enter amount to pay"
+              />
             </div>
-
-            <FormField
-              control={form.control}
-              name="services"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Services</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      readOnly
-                      placeholder="Services will be automatically added from items..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add any additional notes..."
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <BillFormActions
-              billId={billId}
-              onClose={() => handleOpenChange(false)}
-            />
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          </div>
+          <div className="flex justify-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPaymentDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handlePendingPayment}
+            >
+              Pay Now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
