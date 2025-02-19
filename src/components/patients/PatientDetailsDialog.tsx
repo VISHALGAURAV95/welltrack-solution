@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Patient } from "@/pages/Index";
-import { formatDate } from "@/lib/utils";
 import { Phone, Mail, MapPin, Calendar, DollarSign } from "lucide-react";
 
 interface PatientDetailsDialogProps {
