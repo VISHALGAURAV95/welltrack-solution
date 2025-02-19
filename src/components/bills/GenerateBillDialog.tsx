@@ -1,4 +1,3 @@
-
 import { Dialog } from "@/components/ui/dialog";
 import {
   DialogContent,
@@ -125,6 +124,18 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
     form.setValue('items', newItems);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      setTimeout(() => {
+        const rowElement = document.activeElement?.closest('tr');
+        if (rowElement) {
+          rowElement.blur();
+        }
+      }, 0);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const servicesArray = values.services.split(',').map(s => s.trim());
@@ -204,11 +215,11 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <button 
           className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()} // Add this line to stop event propagation
+          onClick={(e) => e.stopPropagation()}
         >
           {billId ? (
             <>
@@ -223,7 +234,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[725px]">
+      <DialogContent className="sm:max-w-[725px]" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>
             {billId ? "Edit Bill for " : "Generate Bill for "}{patientName}
@@ -315,7 +326,7 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
 
             <BillFormActions
               billId={billId}
-              onClose={() => setOpen(false)}
+              onClose={() => handleOpenChange(false)}
             />
           </form>
         </Form>

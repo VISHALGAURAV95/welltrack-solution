@@ -11,7 +11,10 @@ export function BillFormActions({ billId, onClose }: BillFormActionsProps) {
     <div className="flex justify-end gap-4 pt-4">
       <button
         type="button"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
       >
         Cancel
