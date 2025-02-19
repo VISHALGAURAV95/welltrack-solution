@@ -82,7 +82,7 @@ export function AddPatientDialog({ onPatientAdded }: AddPatientDialogProps) {
         .insert({
           name: values.name,
           number: values.number,
-          email: values.email || null,
+          email: values.email || "", // Use empty string instead of null
           address: values.address,
           services: [], // Initialize with empty array
           prescription: values.prescription || null,
