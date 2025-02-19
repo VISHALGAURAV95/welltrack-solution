@@ -3,6 +3,7 @@ import AdminLayout from "@/components/layout/AdminLayout";
 import { useState } from "react";
 import { Search, Filter, FileText } from "lucide-react";
 import { AddPatientDialog } from "@/components/patients/AddPatientDialog";
+import { PatientDetailsDialog } from "@/components/patients/PatientDetailsDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { GenerateBillDialog } from "@/components/bills/GenerateBillDialog";
@@ -18,14 +19,20 @@ export interface Patient {
   name: string;
   email: string;
   number: string;
+  address: string;
   visit_date: string;
   total_cost: number;
   pending_amount: number;
+  services: string[];
+  services_used: string[];
+  prescription: string | null;
 }
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBy, setFilterBy] = useState<"all" | "pending" | "paid">("all");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 
   const { data: patientsData, refetch: refetchPatients } = useQuery({
     queryKey: ['patients'],
@@ -63,6 +70,11 @@ const Index = () => {
 
     // Refresh the patients list
     refetchPatients();
+  };
+
+  const handlePatientClick = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setDetailsDialogOpen(true);
   };
 
   const filteredPatients = patientsData?.filter((patient) => {
@@ -156,6 +168,7 @@ const Index = () => {
                   <tr
                     key={patient.id}
                     className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => handlePatientClick(patient)}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -198,6 +211,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      <PatientDetailsDialog
+        patient={selectedPatient}
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+      />
     </AdminLayout>
   );
 };
