@@ -206,7 +206,10 @@ export function GenerateBillDialog({ patientId, patientName, onBillGenerated, bi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1">
+        <button 
+          className="text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()} // Add this line to stop event propagation
+        >
           {billId ? (
             <>
               <Edit2 className="h-4 w-4" />
